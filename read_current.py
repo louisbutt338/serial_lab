@@ -38,42 +38,54 @@ def zero_correction():
     ser.readline()
     print('zero correction complete')
 
- 
-def read_data(time_int):
+def read_data():
     """ remote control the keithley and trigger current measurements at time intervals
+    """
+    # take measurement
+    ser.write(b'read? \r')
+    serial_line = ser.readline()
+    # decode values
+    current_reading = float(serial_line[:13].decode())
+    time_reading = float(serial_line[15:28].decode())
+    print('current(A):',current_reading,
+          'time(s):',time_reading)
+
+    return current_reading,time_reading
+
+def dump_data(current,time):
+    """ Dump current and time data into txt file
 
     Parameters
     ----------
-    time_int : float
-        set time interval (s) between readings
+    current : str
+        current str from reading
+    time : str
+        time str from reading
     """
-    # take measurement and measure total time taken
-    measure_st = time.time()
-    ser.write(b'read? \r')
-    serial_line = ser.readline()
-    print('current(A):',float(serial_line[:13].decode()),
-          'time(s):',float(serial_line[15:28].decode()))
-    measure_et = time.time()
-    measure_tt = measure_et - measure_st
+    output_filepath = 'output.txt'
+    with open(output_filepath,'w') as file:
+        file.writelines(['current(A)', 'time(s)\n'])
+        file.writelines([current,time,'\n'])
 
+def sleep_time(start_time,end_time,time_int):
+    """ Get code to sleep for appropriate time 
+    depending on the time interval set
+
+    Parameters
+    ----------
+    start_time : time
+        start time before the measurement
+    end_time : time
+        end time after the measurement
+    time_int : time
+        interval time desired between measurements
+    """
+    measurement_time = end_time - start_time
     # sleep for remainder of set time interval, or nothing
-    if time_int > measure_tt:
-        time.sleep(time_int-measure_tt)
+    if time_int > measurement_time:
+        time.sleep(time_int-measurement_time)
     else:
         time.sleep(0)
-
-def parse_txt():
-    """ Parse txt data into two arrays
-    """
-    input_filepath = 'output.txt'
-    with open(input_filepath,'w') as txt_data_file:
-        txt_contents = txt_data_file.readlines()
-        time = []
-        countrate = []
-        for line in txt_contents:
-            time.append(float(line.split()[0]))
-            countrate.append(float(line.split()[1]))
-    return time,countrate
 
 
 # zero correct
@@ -86,4 +98,12 @@ print(f'start time for first reading: {total_start_time}')
 
 # infinite loop to read the data from the serial port
 while True :
-        read_data(time_interval)
+        
+        # take reading and dump data with time measurements either side
+        measure_st = time.time()
+        c,t = read_data(time_interval)
+        dump_data(c,t)
+        measure_et = time.time()
+
+        # sleep the code for remaining time in time_interval
+        sleep_time(measure_st,measure_et,time_interval)
