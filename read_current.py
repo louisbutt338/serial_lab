@@ -1,58 +1,36 @@
 import time
 import serial
-import struct
-
-# configure the serial connections (the parameters differ on the device you are connecting to)
-try:
-    ser = serial.Serial(
-        port='/dev/cu.usbserial-110',
-        baudrate=9600,
-        timeout=1,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE,
-        bytesize=serial.EIGHTBITS
-    )
-# exception if there is no port of that name available 
-except OSError:
-      print("Error connecting device")
-      exit()
-#open the serial connection
-ser.isOpen()
-
-
-def instrument_info():
-    """ print the instrument description
-    """
-    ser.write(b'*idn?\r')
-    serial_line = ser.readline()
-    print(serial_line)
 
 def zero_correction():
-    """ do zero correction for current readings
+    """ set keithley settings and do zero correction for current readings
     """
     ser.write(b'*rst \r')
     ser.write(b'syst:zch on \r ; rang 200e-6  \r ; init \r ')
     ser.write(b'syst:zcor:acq \r ; syst:zcor on \r ; rang:auto on \r ')
     ser.write(b'syst:zch off \r ')
-    ser.write(b'read? \r')
-    ser.readline()
     print('zero correction complete')
 
-def read_data():
-    """ remote control the keithley and trigger current measurements at time intervals
+def read_data(total_st):
+    """ remote control the keithley and trigger current measurements
+    at time intervals from start time
     """
     # take measurement
     ser.write(b'read? \r')
-    serial_line = ser.readline()
+    serial_line = ser.read_until()
     # decode values
-    current_reading = float(serial_line[:13].decode())
-    time_reading = float(serial_line[15:28].decode())
-    print('current(A):',current_reading,
-          'time(s):',time_reading)
+    current_reading = serial_line[:13].decode()
+    #time_reading = serial_line[15:28].decode()
+    time_reading = str(time.time() - total_st)
+    try:
+        print('current(A):',float(current_reading),
+              'time(s):',   time_reading)
+        return current_reading,time_reading
+    except ValueError:
+        print('current(A):','N/A',
+               'time(s):', time_reading)
+        return 'N/A',time_reading
 
-    return current_reading,time_reading
-
-def dump_data(current,time):
+def dump_data(current,time,outfile):
     """ Dump current and time data into txt file
 
     Parameters
@@ -61,11 +39,11 @@ def dump_data(current,time):
         current str from reading
     time : str
         time str from reading
+    outfile : str
+        full output file name i.e. output.txt
     """
-    output_filepath = 'output.txt'
-    with open(output_filepath,'w') as file:
-        file.writelines(['current(A)', 'time(s)\n'])
-        file.writelines([current,time,'\n'])
+    with open(outfile,'a') as file:
+        file.writelines([current,' ',time,'\n'])
 
 def sleep_time(start_time,end_time,time_int):
     """ Get code to sleep for appropriate time 
@@ -88,21 +66,51 @@ def sleep_time(start_time,end_time,time_int):
         time.sleep(0)
 
 
-# zero correct
-zero_correction()
+
+# configure the serial connections (the parameters differ on the device you are connecting to)
+try:
+    ser = serial.Serial(
+        port='/dev/cu.usbserial-110',
+        baudrate=9600,
+        timeout=1,
+        parity=serial.PARITY_NONE,
+        stopbits=serial.STOPBITS_ONE,
+        bytesize=serial.EIGHTBITS
+    )
+# exception if there is no port of that name available 
+except OSError:
+      print("Error connecting device")
+      exit()
+
+#open the serial connection
+ser.isOpen()
+
+# set output file and clear of all data
+output_file = 'output.txt'
+open(output_file,'w').close
 
 # set time interval (s) between each Keithley readings (minimum 1.4s due to legnth of read_data fn)
 time_interval = 2
-total_start_time = time.ctime()
-print(f'start time for first reading: {total_start_time}')
+total_start_time = time.time()
+print(f'start time for measurements: {time.ctime(total_start_time)}')
+
+# header on output data file
+with open(output_file,'a') as file:
+    file.writelines(f'start time for measurements: {time.ctime(total_start_time)}\n')
+    file.writelines(['current(A)',' ', 'time(s)\n'])
+
+# zero correction and first reading
+zero_correction()
+c,t = read_data(total_start_time)
+dump_data(c,t,output_file)
 
 # infinite loop to read the data from the serial port
 while True :
         
         # take reading and dump data with time measurements either side
         measure_st = time.time()
-        c,t = read_data(time_interval)
-        dump_data(c,t)
+        c,t = read_data(total_start_time)
+        dump_data(c,t,output_file)
         measure_et = time.time()
 
         # sleep the code for remaining time in time_interval
