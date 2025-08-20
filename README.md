@@ -16,5 +16,5 @@ run c++ version
 ```
 cmake -S src -B build
 cmake --build build
-./build/current 
+./build/serial_posix 
 ```
