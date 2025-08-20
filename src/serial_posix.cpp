@@ -42,7 +42,7 @@ bool configureSerialPort(int fd, int speed)
                      // canonical processing
     tty.c_oflag = 0; // no remapping, no delays
     tty.c_cc[VMIN] = 0; // read doesn't block
-    tty.c_cc[VTIME] = 5; // 0.5 seconds read timeout
+    tty.c_cc[VTIME] = 10; // 1 seconds read timeout
 
     tty.c_iflag &= ~(IXON | IXOFF
                      | IXANY); // shut off xon/xoff ctrl
@@ -86,6 +86,7 @@ void doZeroCorrection(int fd)
     const char* zc2 = "syst:zch on \r ; rang 200e-6  \r ; init \r";
     const char* zc3 = "syst:zcor:acq \r ; syst:zcor on \r ; rang:auto on \r ";
     const char* zc4 = "syst:zch off \r ";
+    //cerr << zc1 << endl;
 
     // write commands to the keithley
     writeToSerialPort(fd,zc1, strlen(zc1));
@@ -128,29 +129,39 @@ int main()
         return 1;
     }
 
-    const char* message = "Hello, Serial Port!";
-    if (writeToSerialPort(fd, message, strlen(message))
-        < 0) {
-        cerr << "Error writing to serial port: "
-             << strerror(errno) << endl;
-    }
-    else {
-        //writeToSerialPort(fd, message, strlen(message));
-        doZeroCorrection(fd);
-    }
+    // const char* message = "Hello, Serial Port!";
+    // if (writeToSerialPort(fd, message, strlen(message))
+    //     < 0) {
+    //     cerr << "Error writing to serial port: "
+    //          << strerror(errno) << endl;
+    // }
+    // else {
+    //     writeToSerialPort(fd, message, strlen(message));
+    // }
+
+    doZeroCorrection(fd);
+    char buffer[100];
+    int n = readFromSerialPort(fd, buffer, sizeof(buffer));
+    cout << "Read from serial port: "
+         << std::string(buffer, n) << endl;
+
+    // char buffer[100];
+    // int n = readFromSerialPort(fd, buffer, sizeof(buffer));
+    // if (n < 0) {
+    //     cerr << "Error reading from serial port: "
+    //          << strerror(errno) << endl;
+    // }
+    // else {
+    //     cout << "Read from serial port: "
+    //          << std::string(buffer, n) << endl;
+    // }
 
     while(true) {
         readData(fd);
         char buffer[100];
         int n = readFromSerialPort(fd, buffer, sizeof(buffer));
-        if (n < 0) {
-            cerr << "Error reading from serial port: "
-                 << strerror(errno) << endl;
-        }
-        else {
-            cout << "Read from serial port: "
-                 << std::string(buffer, n) << endl;
-        }
+        cout << "Read from serial port: "
+             << std::string(buffer, n) << endl;
     }
 
     closeSerialPort(fd);

@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)               
-project(serial CXX)
-add_executable(current current.cpp)
-#add_library(current MODULE current.cpp)
-#target_link_libraries(current)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
+
+project(serial_posix CXX)
+add_executable(serial_posix serial_posix.cpp)
+
+#project(software_serial CXX)
+#add_executable(software_serial software_serial.cpp)
