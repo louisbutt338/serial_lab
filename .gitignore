@@ -1,0 +1,13 @@
+# Mac DS files
+.DS_Store
+
+# any previously built version of anything
+/build/
+
+# Python egg metadata
+/*.egg-info
+/*.egg
+/*.eggs
+
+# pycache stuff
+/__pycache__/

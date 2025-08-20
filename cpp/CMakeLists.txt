@@ -1,4 +1,0 @@
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)               
-project(serial CXX)
-add_library(current MODULE current.cpp)
-target_link_libraries(current)

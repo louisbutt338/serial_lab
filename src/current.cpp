@@ -78,10 +78,47 @@ int writeToSerialPort(int fd, const char* buffer,
 // Function to close the serial port
 void closeSerialPort(int fd) { close(fd); }
 
+// set keithley settings and do zero correction for current readings
+void doZeroCorrection(int fd)
+{
+    // declare strings for the keithley
+    const char* zc1 = "*rst \r";
+    const char* zc2 = "syst:zch on \r ; rang 200e-6  \r ; init \r";
+    const char* zc3 = "syst:zcor:acq \r ; syst:zcor on \r ; rang:auto on \r ";
+    const char* zc4 = "syst:zch off \r ";
+
+    // write commands to the keithley
+    writeToSerialPort(fd,zc1, strlen(zc1));
+    writeToSerialPort(fd,zc2, strlen(zc2));
+    writeToSerialPort(fd,zc3, strlen(zc3));
+    writeToSerialPort(fd,zc4, strlen(zc4));
+    cerr << "zero correction complete " << endl;
+}
+
+// remote control the keithley and trigger current measurements
+void readData(int fd)
+{
+    // take measurement
+    const char* read = "read? \r";
+    writeToSerialPort(fd,read, strlen(read));
+
+    // decode values
+    //current_reading = serial_line[:13].decode()
+    //time_reading = serial_line[15:28].decode()
+    //try:
+    //    print('current(A):',float(current_reading),
+    //          'time(s):',   time_reading)
+    //    return current_reading,time_reading
+    // except ValueError:
+    //     print('current(A):','N/A',
+    //            'time(s):', time_reading)
+    //     return 'N/A',time_reading
+}
+
 int main()
 {
     // Replace with your serial port name
-    const char* portname = "/dev/ttyS1";
+    const char* portname = "/dev/cu.usbserial-110";
     int fd = openSerialPort(portname);
     if (fd < 0)
         return 1;
@@ -97,16 +134,23 @@ int main()
         cerr << "Error writing to serial port: "
              << strerror(errno) << endl;
     }
-
-    char buffer[100];
-    int n = readFromSerialPort(fd, buffer, sizeof(buffer));
-    if (n < 0) {
-        cerr << "Error reading from serial port: "
-             << strerror(errno) << endl;
-    }
     else {
-        cout << "Read from serial port: "
-             << std::string(buffer, n) << endl;
+        //writeToSerialPort(fd, message, strlen(message));
+        doZeroCorrection(fd);
+    }
+
+    while(true) {
+        readData(fd);
+        char buffer[100];
+        int n = readFromSerialPort(fd, buffer, sizeof(buffer));
+        if (n < 0) {
+            cerr << "Error reading from serial port: "
+                 << strerror(errno) << endl;
+        }
+        else {
+            cout << "Read from serial port: "
+                 << std::string(buffer, n) << endl;
+        }
     }
 
     closeSerialPort(fd);
